@@ -2,13 +2,19 @@ package com.microsoft.appcenter.sasquatch.activities;
 
 import android.annotation.SuppressLint;
 import android.app.Application;
+import android.app.NotificationManager;
+import android.app.NotificationChannel;
+import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.StrictMode;
+import android.os.Build;
 import android.support.annotation.NonNull;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.NotificationManagerCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
 import android.text.format.Formatter;
@@ -104,6 +110,19 @@ public class MainActivity extends AppCompatActivity {
     }
 
     native void setupNativeCrashesListener(String path);
+
+    public void initChannels(Context context) {
+        if (Build.VERSION.SDK_INT < 26) {
+            return;
+        }
+        NotificationManager notificationManager =
+                (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        NotificationChannel channel = new NotificationChannel("default",
+                "Channel name",
+                NotificationManagerCompat.IMPORTANCE_DEFAULT);
+        channel.setDescription("Channel description");
+        notificationManager.createNotificationChannel(channel);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -203,6 +222,33 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+
+
+
+        // Set up an intent so that tapping the notifications returns to this app
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.putExtra("Notification_Id", 1001);
+
+        // Create a PendingIntent; we're only using one PendingIntent (ID = 0):
+        int pendingIntentId = 0;
+        PendingIntent pendingIntent =
+                PendingIntent.getActivity(this, pendingIntentId, intent, PendingIntent.FLAG_ONE_SHOT);
+
+        // Build the notification:
+        initChannels(this);
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, "default")
+                .setAutoCancel(true) // Dismiss the notification from the notification area when the user clicks on it
+                .setContentIntent(pendingIntent) // Start up this activity when the user clicks the intent.
+                .setDefaults(1)
+                .setContentTitle("eventTitle") // Set the title
+                .setSmallIcon(R.drawable.ic_appcenter_logo) // This is the icon to display
+                .setContentText("Message blah"); // the message to display.
+
+        // Finally, publish the notification:
+        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
+        notificationManager.notify(123, builder.build());
+
+
 
         /* Populate UI. */
         ((TextView) findViewById(R.id.package_name)).setText(String.format(getString(R.string.sdk_source_format), getPackageName().substring(getPackageName().lastIndexOf(".") + 1)));
